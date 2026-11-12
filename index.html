@@ -165,7 +165,11 @@ const BIRDS = [
 
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
-const IS_TOUCH = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);   // phones and tablets: don't pop up the keyboard on their own
+const IS_TOUCH = !!(window.matchMedia && (matchMedia("(pointer: coarse)").matches || matchMedia("(hover: none)").matches))
+  || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);   // iPad pretending to be a Mac
+/* on phones/tablets, close the on-screen keyboard (if it's open) */
+function closeKeyboard(){ if(IS_TOUCH && document.activeElement && document.activeElement.blur) document.activeElement.blur(); }   // phones and tablets: don't pop up the keyboard on their own
 const norm = s => s.toLowerCase().replace(/&/g,"and").replace(/[^a-z]/g,"");
 /* edit distance where a swapped pair of neighbouring letters ("catbrid") counts as one typo */
 function lev(a,b){
@@ -348,7 +352,7 @@ function updateProg(){
 }
 function skipBird(){
   if(answered||!cur||idx>=queue.length) return;
-  stopListening();
+  stopListening(); closeKeyboard();
   skipped.add(cur.name);
   // bring it back a few birds later (or at the very end if the round is nearly over)
   queue.splice(Math.min(queue.length, idx+3),0,cur);
@@ -417,6 +421,7 @@ function handleSpoken(alts){
 function startListening(){
   if(answered||!cur) return;
   if(listening){ try{rec.stop();}catch(e){} return; }
+  closeKeyboard();
   rec=new SR(); rec.lang="en-US"; rec.interimResults=true; rec.maxAlternatives=5; rec.continuous=false;
   let gotFinal=false;
   rec.onstart=()=>{ listening=true; $("mic").classList.add("on"); say("🎤 Listening… say the bird's name."); };
@@ -443,7 +448,7 @@ $("hintBtn").onclick=()=>{
   hinted=true;
   const pattern=cur.name.split(" ").map(w=>w.split("").map((c,i)=>i===0?c:(c==="-"||c==="'"?c:"_")).join(" ")).join("   ");
   $("msg").innerHTML='<div class="msg info">Hint: <span class="hint">'+esc(pattern)+'</span></div>';
-  if(!IS_TOUCH) $("answer").focus();   // on phones, leave the keyboard closed
+  if(IS_TOUCH) closeKeyboard(); else $("answer").focus();   // on phones, keep the keyboard closed
 };
 $("giveUp").onclick=()=>{ if(!answered&&cur) finish(0); };
 $("next").onclick=()=>nextBird();

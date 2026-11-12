@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simon's Birdfeeder Birds - Name that Bird</title>
+<title>Simon's Backyard Birds - Name that Bird</title>
 <style>
   :root{
     --bg:#f3f1e8; --card:#fffdf7; --ink:#26302a; --muted:#6a7568;
@@ -65,7 +65,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>🐦 Simon's Birdfeeder Birds <span style="font-weight:400;font-size:1.05rem;color:var(--muted)">– Name that Bird</span></h1>
+    <h1>🐦 Simon's Backyard Birds <span style="font-weight:400;font-size:1.05rem;color:var(--muted)">– Name that Bird</span></h1>
     <span class="sub" id="best"></span>
   </header>
 
@@ -123,7 +123,7 @@
     </div>
   </section>
 
-  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 12-Nov-2026 (j)</footer>
+  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 12-Nov-2026 (l)</footer>
 </div>
 
 <script>
@@ -713,21 +713,16 @@ function startListening(){
     $("answer").value=res[0].transcript;
     if(res.isFinal){ gotFinal=true; handleSpoken(Array.from(res).map(a=>a.transcript)); }
   };
-  let gotError=false;
   rec.onerror=e=>{
-    if(e.error==="aborted") return;           // we stopped it ourselves
-    gotError=true;
-    const m={ "not-allowed":"The microphone is blocked. Click the lock or camera icon in the address bar, allow the microphone, then reload the page and try again.",
-              "service-not-allowed":"This browser won't allow speech recognition here. Try Chrome or Edge, and open the game from a website link if it's a saved file.",
-              "no-speech":"I didn't hear anything. Check that your microphone is on and not muted, then tap the mic and try again.",
-              "audio-capture":"No microphone was found. Check that one is plugged in and selected as the input device in your computer's sound settings.",
-              "network":"Speech recognition couldn't reach its online service. It needs an internet connection, and some browsers (such as Brave) or VPNs and ad blockers block it." }[e.error];
-    say(m || ("Speech recognition problem (code: "+esc(String(e.error))+"). Try again, or type the name."),"bad");
+    const m={ "not-allowed":"The microphone is blocked. Allow it in your browser's site settings and try again.",
+              "service-not-allowed":"Speech recognition isn't allowed here. Try opening the game in Chrome, Edge or Safari.",
+              "no-speech":"I didn't hear anything. Tap the mic and try again.",
+              "audio-capture":"No microphone found.",
+              "network":"Speech recognition needs an internet connection." }[e.error];
+    if(m) say(m,"bad");
   };
   rec.onend=()=>{ listening=false; $("mic").classList.remove("on");
-    // finished with no answer and no error: don't fail silently
-    if(!gotFinal && !gotError && !answered && $("msg").textContent.indexOf("Listening")>=0)
-      say("I didn't catch a bird name. Check that your microphone is on and selected as the input device, then tap the mic and try again.","bad"); };
+    if(!gotFinal && !answered && $("msg").textContent.indexOf("Listening")>=0) $("msg").innerHTML=""; };
   try{ rec.start(); }catch(e){ say("Couldn't start the microphone. Try again.","bad"); }
 }
 if(SR){ $("mic").classList.remove("hidden"); $("mic").onclick=startListening; }

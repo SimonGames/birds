@@ -123,7 +123,7 @@
     </div>
   </section>
 
-  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.</footer>
+  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 11-Nov-2026 (d)</footer>
 </div>
 
 <script>
@@ -169,6 +169,15 @@ const IS_TOUCH = !!(window.matchMedia && (matchMedia("(pointer: coarse)").matche
   || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);   // iPad pretending to be a Mac
 /* on phones/tablets, close the on-screen keyboard (if it's open) */
+/* Phones/tablets: the answer box is "read-only" (no keyboard) until the player taps it, and goes back to
+   read-only whenever it loses focus. That way nothing else in the game can ever open the keyboard. */
+(function(){
+  const box=document.getElementById("answer");
+  if(!IS_TOUCH || !box) return;
+  box.readOnly=true;
+  box.addEventListener("click",()=>{ if(box.readOnly){ box.readOnly=false; box.focus(); } });
+  box.addEventListener("blur",()=>{ box.readOnly=true; });
+})();
 function closeKeyboard(){ if(IS_TOUCH && document.activeElement && document.activeElement.blur) document.activeElement.blur(); }   // phones and tablets: don't pop up the keyboard on their own
 const norm = s => s.toLowerCase().replace(/&/g,"and").replace(/[^a-z]/g,"");
 /* edit distance where a swapped pair of neighbouring letters ("catbrid") counts as one typo */

@@ -443,7 +443,7 @@ $("hintBtn").onclick=()=>{
   hinted=true;
   const pattern=cur.name.split(" ").map(w=>w.split("").map((c,i)=>i===0?c:(c==="-"||c==="'"?c:"_")).join(" ")).join("   ");
   $("msg").innerHTML='<div class="msg info">Hint: <span class="hint">'+esc(pattern)+'</span></div>';
-  $("answer").focus();
+  if(!IS_TOUCH) $("answer").focus();   // on phones, leave the keyboard closed
 };
 $("giveUp").onclick=()=>{ if(!answered&&cur) finish(0); };
 $("next").onclick=()=>nextBird();

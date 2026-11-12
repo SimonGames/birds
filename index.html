@@ -39,9 +39,6 @@
   .loading{position:absolute;color:var(--muted);font-family:system-ui,sans-serif}
   .credit{font-family:system-ui,sans-serif;font-size:.72rem;color:var(--muted);margin:6px 2px 0;min-height:1em}
   .credit a{color:inherit}
-  .linkbtn{background:none;color:var(--muted);border:0;padding:4px 2px;font-size:.75rem;font-weight:400;text-decoration:underline;font-family:system-ui,sans-serif}
-  .linkbtn:hover{background:none;color:var(--ink)}
-  .linkbtn:disabled{text-decoration:none}
   .guess{display:flex;gap:8px;margin-top:12px}
   .guess input{flex:1;min-width:0;padding:12px;border-radius:10px;border:2px solid var(--line);font-size:1.1rem;background:#fff}
   .guess input:focus{outline:none;border-color:var(--green)}
@@ -80,7 +77,7 @@
       <option value="10" selected>10</option>
       <option value="20">20</option>
       <option value="5">5 (quick)</option>
-      <option value="31">All 31</option>
+      <option value="32">All 32</option>
     </select>
     <div style="margin-top:14px"><button id="go" style="width:100%">Start round</button></div>
     <p class="sub" id="countline" style="margin-bottom:0"></p>
@@ -94,7 +91,6 @@
       <img id="img" alt="Bird to identify" class="hidden">
     </div>
     <div class="credit" id="credit"></div>
-    <button type="button" class="linkbtn hidden" id="badPhoto">🚩 Wrong or bad photo</button>
 
     <form class="guess" id="form" autocomplete="off">
       <input id="answer" type="text" placeholder="Type the bird's name" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
@@ -126,7 +122,7 @@
     </div>
   </section>
 
-  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Each bird has several photos, picked at random. If one looks wrong, tap 🚩. Needs an internet connection.</footer>
+  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.</footer>
 </div>
 
 <script>
@@ -134,6 +130,7 @@
 const BIRDS = [
  ["Northern Cardinal","F",["cardinal","redbird"],"Both males and females sing, which is unusual among North American songbirds."],
  ["Blue Jay","F",["bluejay","jay"],"Can imitate the call of a red-shouldered hawk."],
+ ["Mallard","R",["mallard duck","duck"],"Males have glossy green heads."],
  ["Mourning Dove","F",["dove"],"Its wings make a whistling sound when it takes off."],
  ["American Goldfinch","F",["goldfinch"],"Males turn bright yellow in spring and dull olive-brown in winter."],
  ["House Finch","F",["housefinch"],"A male's red color comes from pigments in the food he eats."],
@@ -214,133 +211,58 @@ const store = {
   save(d){ try{ localStorage.setItem("mdbirds",JSON.stringify(d)); }catch(e){} }
 };
 let saved = store.load();
-saved.best = saved.best||{}; saved.missed = saved.missed||{}; saved.seen = saved.seen||{}; saved.blocked = saved.blocked||[];
+saved.best = saved.best||{}; saved.missed = saved.missed||{};
 
 /* ---------- photo lookup (Wikipedia / Wikimedia Commons) ---------- */
-/* Scientific names = Wikimedia Commons category names, used to find several photos of each species. */
-const SCI = {
- "Northern Cardinal":["Cardinalis cardinalis"],
- "Blue Jay":["Cyanocitta cristata"],
- "Mourning Dove":["Zenaida macroura"],
- "American Goldfinch":["Spinus tristis","Carduelis tristis"],
- "House Finch":["Haemorhous mexicanus","Carpodacus mexicanus"],
- "Downy Woodpecker":["Dryobates pubescens","Picoides pubescens"],
- "Red-bellied Woodpecker":["Melanerpes carolinus"],
- "Pileated Woodpecker":["Dryocopus pileatus"],
- "Northern Flicker":["Colaptes auratus"],
- "Yellow-bellied Sapsucker":["Sphyrapicus varius"],
- "White-breasted Nuthatch":["Sitta carolinensis"],
- "Carolina Wren":["Thryothorus ludovicianus"],
- "House Wren":["Troglodytes aedon"],
- "Tufted Titmouse":["Baeolophus bicolor"],
- "Carolina Chickadee":["Poecile carolinensis"],
- "Black-capped Chickadee":["Poecile atricapillus"],
- "Eastern Bluebird":["Sialia sialis"],
- "Common Grackle":["Quiscalus quiscula"],
- "European Starling":["Sturnus vulgaris"],
- "Red-winged Blackbird":["Agelaius phoeniceus"],
- "American Robin":["Turdus migratorius"],
- "Cooper's Hawk":["Accipiter cooperii"],
- "Fish Crow":["Corvus ossifragus"],
- "Gray Catbird":["Dumetella carolinensis"],
- "Brown-headed Cowbird":["Molothrus ater"],
- "Northern Mockingbird":["Mimus polyglottos"],
- "Rose-breasted Grosbeak":["Pheucticus ludovicianus"],
- "Baltimore Oriole":["Icterus galbula"],
- "Ruby-throated Hummingbird":["Archilochus colubris"],
- "Dark-eyed Junco":["Junco hyemalis"],
- "White-throated Sparrow":["Zonotrichia albicollis"]
-};
-/* file names / categories that mean "not an ordinary photo of the live bird" */
-const BADWORDS = /\b(eggs?|nests?|nestlings?|skeletons?|skulls?|specimens?|museum|map|distribution|drawings?|illustrations?|paintings?|plates?|stamps?|sketch(es)?|feathers?|footprints?|spectrograms?|taxiderm\w*|bones|lithographs?|engravings?|coins?|logos?|cartoons?|statues?|chicks?|diagrams?|silhouettes?)\b/i;
-const strip = h => (h&&h.value||"").replace(/<[^>]*>/g,"").replace(/\s+/g," ").trim();
-const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
-
-const photoLists = new Map();   // bird name -> Promise<array of photos> (kept for the whole visit)
-const plan = new Map();         // bird name -> the photo chosen for the current round
+const photoCache = new Map();   // bird name -> Promise<{src, fallback, credit} | null>
+const isPhoto = u => /\.(jpe?g|png)(\?|$)/i.test(u||"");
 
 async function getJSON(url){
   const r = await fetch(url); if(!r.ok) throw new Error(r.status);
   return r.json();
 }
-const COMMONS = "https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*"+
-  "&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=960&iiextmetadatafilter=Artist|LicenseShortName|Categories";
-
-/* turn a Commons API answer into usable photo records */
-function toPhotos(d, allowPng){
-  const pages = d && d.query && d.query.pages ? Object.values(d.query.pages) : [];
-  const out = [];
-  for(const pg of pages){
-    const ii = pg.imageinfo && pg.imageinfo[0]; if(!ii) continue;
-    if(!(ii.mime==="image/jpeg" || (allowPng && ii.mime==="image/png"))) continue;
-    if((ii.width||0) < 700 || (ii.height||0) < 450) continue;
-    const m = ii.extmetadata || {};
-    const cats = ((m.Categories&&m.Categories.value)||"").replace(/\|/g," ");
-    if(BADWORDS.test(pg.title.replace(/[_.]/g," ")+" "+cats)) continue;
-    out.push({ id:pg.title, src:ii.thumburl||ii.url, fallback:ii.url,
-      credit:{ artist:strip(m.Artist)||"Unknown", license:strip(m.LicenseShortName), page:ii.descriptionurl } });
-  }
-  return out;
-}
-async function commonsTitles(titles, allowPng){
-  if(!titles.length) return [];
-  return toPhotos(await getJSON(COMMONS+"&titles="+encodeURIComponent(titles.join("|"))), allowPng);
-}
-async function commonsCategory(cat){
-  return toPhotos(await getJSON(COMMONS+"&generator=categorymembers&gcmtype=file&gcmlimit=50&gcmtitle="+encodeURIComponent("Category:"+cat)), false);
-}
-/* the picture at the top of the bird's Wikipedia article: always a good, correct photo */
-async function wikipediaLeadTitle(bird){
-  const fileOf = u => "File:"+decodeURIComponent(u.split("/").filter(Boolean).pop().split("?")[0]);
+async function findImage(bird){
+  // 1) direct page summary
   try{
     const d = await getJSON("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(bird.name.replace(/ /g,"_")));
     const img = d.originalimage||d.thumbnail;
-    if(d.type==="standard" && img) return fileOf(img.source);
+    if(d.type==="standard" && img && isPhoto(img.source)) return {orig:img.source, thumb:(d.thumbnail&&d.thumbnail.source)||img.source};
   }catch(e){}
+  // 2) search fallback
   try{
     const q = encodeURIComponent(bird.name+" bird");
-    const d = await getJSON("https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=1&gsrsearch="+q+"&prop=pageimages&piprop=original");
-    const pg = d.query && Object.values(d.query.pages)[0];
-    if(pg && pg.original) return fileOf(pg.original.source);
+    const d = await getJSON("https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=1&gsrsearch="+q+"&prop=pageimages&piprop=original|thumbnail&pithumbsize=960");
+    const p = d.query && Object.values(d.query.pages)[0];
+    if(p && p.original && isPhoto(p.original.source)) return {orig:p.original.source, thumb:(p.thumbnail&&p.thumbnail.source)||p.original.source};
   }catch(e){}
   return null;
 }
-async function gatherPhotos(bird){
-  const out = [];
-  const add = list => { for(const c of list) if(!out.some(o=>o.id===c.id)) out.push(c); };
-  // 1) the Wikipedia lead photo
-  try{ const t = await wikipediaLeadTitle(bird); if(t) add(await commonsTitles([t], true)); }catch(e){}
-  // 2) more photos from the species' Commons category
-  for(const cat of (SCI[bird.name]||[])){
-    try{ add(shuffle(await commonsCategory(cat)).slice(0,30)); }catch(e){}
-    if(out.length>=8) break;
+async function findCredit(url){
+  try{
+    const file = decodeURIComponent(url.split("/").filter(Boolean).pop().replace(/^\d+px-/,"").split("?")[0]);
+    const d = await getJSON("https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=extmetadata&titles="+encodeURIComponent("File:"+file));
+    const page = Object.values(d.query.pages)[0];
+    const m = page.imageinfo[0].extmetadata;
+    const strip = h => (h&&h.value||"").replace(/<[^>]*>/g,"").replace(/\s+/g," ").trim();
+    return {
+      artist: strip(m.Artist)||"Unknown",
+      license: strip(m.LicenseShortName)||"",
+      page: "https://commons.wikimedia.org/wiki/File:"+encodeURIComponent(file)
+    };
+  }catch(e){ return null; }
+}
+function loadPhoto(bird){
+  if(!photoCache.has(bird.name)){
+    photoCache.set(bird.name,(async()=>{
+      const f = await findImage(bird); if(!f) return null;
+      // Use a standard thumbnail size (960px) for a reasonable download size.
+      let src = f.thumb;
+      if(/\/thumb\//.test(src)) src = src.replace(/\/\d+px-/,"/960px-");
+      const credit = await findCredit(f.orig);
+      return {src, fallback:f.thumb, credit};
+    })());
   }
-  // 3) still short? use the other pictures from the Wikipedia article
-  if(out.length<2){
-    try{
-      const d = await getJSON("https://en.wikipedia.org/api/rest_v1/page/media-list/"+encodeURIComponent(bird.name.replace(/ /g,"_")));
-      const titles = (d.items||[]).filter(i=>i.type==="image" && /\.jpe?g$/i.test(i.title||""))
-        .map(i=>/^File:/i.test(i.title)?i.title:"File:"+i.title).slice(0,20);
-      add(await commonsTitles(titles, false));
-    }catch(e){}
-  }
-  const blocked = new Set(saved.blocked);
-  return shuffle(out.filter(c=>!blocked.has(c.id)));
-}
-function loadPhotos(bird){
-  if(!photoLists.has(bird.name)) photoLists.set(bird.name, gatherPhotos(bird));
-  return photoLists.get(bird.name);
-}
-/* random choice, avoiding the last few photos shown for this bird */
-function pickPhoto(bird, list){
-  if(!list.length) return null;
-  const recent = new Set(saved.seen[bird.name]||[]);
-  let opts = list.filter(c=>!recent.has(c.id)); if(!opts.length) opts = list;
-  return opts[Math.floor(Math.random()*opts.length)];
-}
-function recordSeen(bird, c){
-  const a = (saved.seen[bird.name]||[]).filter(x=>x!==c.id); a.push(c.id);
-  saved.seen[bird.name] = a.slice(-4); store.save(saved);
+  return photoCache.get(bird.name);
 }
 function preloadImg(src){ const i=new Image(); i.src=src; }
 
@@ -377,7 +299,7 @@ function startRound(){
   // the round itself, plus a few spares in case a photo can't be found
   const picks=weightedPick(pool, Math.min(pool.length, roundLen+6));
   queue=picks.slice(0,roundLen); spares=picks.slice(roundLen);
-  roundTotal=queue.length; skipped=new Set(); plan.clear();
+  roundTotal=queue.length; skipped=new Set();
   idx=0; score=0; missedThisRound=[]; roundCount=0;
   $("score").textContent=0;
   show("game");
@@ -392,52 +314,29 @@ async function nextBird(){
   $("hintBtn").disabled=false; $("giveUp").disabled=false; $("tools").classList.remove("hidden");
   $("skipBtn").disabled = idx>=queue.length;   // nothing to come back after if this is the last bird
   $("img").classList.add("hidden"); $("img").removeAttribute("src");
-  $("credit").textContent=""; $("badPhoto").classList.add("hidden");
-  $("loading").textContent="Finding a photo…"; $("loading").classList.remove("hidden");
+  $("credit").textContent=""; $("loading").textContent="Finding a photo…"; $("loading").classList.remove("hidden");
   updateProg();
   const bird=cur;
-  const list = await loadPhotos(bird);
+  const p = await loadPhoto(bird);
   if(bird!==cur) return;
-  showPhoto(bird,list);
-  // get the next bird's photo ready
-  const nxt=queue[idx];
-  if(nxt) loadPhotos(nxt).then(l=>{
-    if(!plan.has(nxt.name)){ const c=pickPhoto(nxt,l); if(c){ plan.set(nxt.name,c); preloadImg(c.src); } }
-  });
-}
-function showPhoto(bird, list){
-  let c=plan.get(bird.name);
-  if(!c){ c=pickPhoto(bird,list); if(c) plan.set(bird.name,c); }
-  if(!c) return noPhoto(bird);
-  recordSeen(bird,c);
+  if(!p){ // no usable photo: swap in a spare bird, or shorten the round
+    if(navigator.onLine===false){ $("loading").textContent="No internet connection. Connect and reload."; return; }
+    skipped.delete(bird.name);
+    if(spares.length) queue.splice(idx,0,spares.shift()); else roundTotal--;
+    return nextBird();
+  }
   const img=$("img");
-  img.classList.add("hidden"); $("loading").textContent="Finding a photo…"; $("loading").classList.remove("hidden");
-  img.onload=()=>{ if(bird!==cur) return; $("loading").classList.add("hidden"); img.classList.remove("hidden"); if(!answered) $("answer").focus(); };
-  img.onerror=()=>{
-    if(bird!==cur) return;
-    if(c.fallback && img.src!==c.fallback){ img.src=c.fallback; }
-    else dropPhoto(bird,c,false);
-  };
-  img.src=c.src;
-  $("credit").innerHTML="Photo: "+esc(c.credit.artist)+(c.credit.license?" · "+esc(c.credit.license):"")+
-    " · <a href=\""+esc(c.credit.page||"https://commons.wikimedia.org")+"\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>";
-  $("badPhoto").textContent="🚩 Wrong or bad photo"; $("badPhoto").disabled=false; $("badPhoto").classList.remove("hidden");
-}
-/* a photo failed to load or the player flagged it: remove it and show another of the same bird */
-async function dropPhoto(bird, c, permanent){
-  if(permanent){ saved.blocked.push(c.id); store.save(saved); }
-  const list=await loadPhotos(bird);
-  const i=list.indexOf(c); if(i>=0) list.splice(i,1);
-  plan.delete(bird.name);
-  if(bird!==cur) return;
-  if(answered){ $("badPhoto").textContent="Thanks, that photo is hidden from now on"; $("badPhoto").disabled=true; return; }
-  showPhoto(bird,list);
-}
-function noPhoto(bird){ // no usable photo at all: swap in a spare bird, or shorten the round
-  if(navigator.onLine===false){ $("loading").textContent="No internet connection. Connect and reload."; return; }
-  skipped.delete(bird.name);
-  if(spares.length) queue.splice(idx,0,spares.shift()); else roundTotal--;
-  nextBird();
+  img.onload=()=>{ if(bird!==cur) return; $("loading").classList.add("hidden"); img.classList.remove("hidden"); $("answer").focus(); };
+  img.onerror=()=>{ if(img.src!==p.fallback && p.fallback){ img.src=p.fallback; } else if(bird===cur){ nextBird(); } };
+  img.src=p.src;
+  if(p.credit){
+    $("credit").innerHTML="Photo: "+esc(p.credit.artist)+(p.credit.license?" · "+esc(p.credit.license):"")+
+      " · <a href=\""+p.credit.page+"\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>";
+  } else {
+    $("credit").textContent="Photo from Wikipedia / Wikimedia Commons";
+  }
+  // preload next
+  const nxt=queue[idx]; if(nxt) loadPhoto(nxt).then(q=>q&&preloadImg(q.src));
 }
 
 function updateProg(){
@@ -454,7 +353,6 @@ function skipBird(){
   nextBird();
 }
 $("skipBtn").onclick=skipBird;
-$("badPhoto").onclick=()=>{ const c=plan.get(cur&&cur.name); if(c) dropPhoto(cur,c,true); };
 
 function finish(points, how){
   stopListening();

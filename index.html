@@ -123,7 +123,7 @@
     </div>
   </section>
 
-  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 11-Nov-2026 (d)</footer>
+  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 12-Nov-2026 (e)</footer>
 </div>
 
 <script>
@@ -226,7 +226,7 @@ const store = {
   save(d){ try{ localStorage.setItem("mdbirds",JSON.stringify(d)); }catch(e){} }
 };
 let saved = store.load();
-saved.best = saved.best||{}; saved.missed = saved.missed||{};
+saved.best = saved.best||{}; saved.missed = saved.missed||{}; saved.factBag = saved.factBag||{}; saved.factLast = saved.factLast||{};
 
 /* ---------- photo lookup (Wikipedia / Wikimedia Commons) ---------- */
 const photoCache = new Map();   // bird name -> Promise<{src, fallback, credit} | null>
@@ -280,6 +280,248 @@ function loadPhoto(bird){
   return photoCache.get(bird.name);
 }
 function preloadImg(src){ const i=new Image(); i.src=src; }
+
+/* ---------- fun facts (several per bird; a different one is shown each time you play) ---------- */
+const FACTS = {
+ "Northern Cardinal":[
+  "Only the males are bright red. Females are a warm tan with just a touch of red on the wings, crest and tail.",
+  "Unlike most songbirds, female cardinals sing too, sometimes while sitting on the nest.",
+  "Cardinals don't migrate. The pair at your feeder in winter probably lives nearby all year.",
+  "More U.S. states picked the Northern Cardinal as their state bird than any other bird: seven in all.",
+  "Males sometimes attack their own reflection in a window or car mirror, thinking it's a rival.",
+  "During courtship, a male may pick up a seed and feed it to the female beak to beak."],
+ "Blue Jay":[
+  "A blue jay's feathers have no blue pigment. The color comes from the tiny structure of the feathers, which scatters blue light.",
+  "Blue jays can mimic the cry of a hawk. Scientists think it may warn other jays or scare other birds away from food.",
+  "Jays bury thousands of acorns, and the ones they forget grow into oak trees. They are thought to have helped oaks spread north after the last Ice Age.",
+  "A blue jay can carry several acorns at once, stored in its throat pouch and bill.",
+  "In lab studies, blue jays have even used a bit of paper as a tool to reach food.",
+  "Some blue jays migrate and some stay put, and the same jay may do each in different years. Scientists still aren't sure why."],
+ "Mourning Dove":[
+  "Its name comes from its soft, sad-sounding coo, which many people mistake for an owl.",
+  "When a mourning dove takes off, its wings make a whistling sound.",
+  "Doves can drink by sucking water up like a straw, instead of tipping their heads back like most birds.",
+  "Both parents feed their chicks 'crop milk', a rich, milk-like liquid made in their throats.",
+  "In warm climates a pair can raise as many as five or six broods of chicks in a single year.",
+  "Mourning doves are among the most abundant birds in North America, with a population in the hundreds of millions."],
+ "American Goldfinch":[
+  "Goldfinches molt twice a year. Males turn bright yellow in spring and dull olive-brown in winter, so they look like two different birds.",
+  "They eat almost nothing but seeds, and they even feed seeds to their chicks, which is rare among songbirds.",
+  "They nest late in summer, waiting until thistles and other plants have gone to seed to feed their young.",
+  "Listen for goldfinches overhead. Their bouncy, up-and-down flight and 'po-ta-to-chip' call give them away.",
+  "The American Goldfinch is the state bird of Iowa, New Jersey and Washington.",
+  "A goldfinch can hang upside down to pull seeds out of a thistle head or a feeder."],
+ "House Finch":[
+  "A male's red color comes from pigments in the food he eats. The redder the male, the more females seem to like him.",
+  "House finches come from the western U.S. and Mexico. Some were released on Long Island in the 1940s and have spread across the East.",
+  "They often nest in hanging baskets, wreaths, porch lights and other spots around houses.",
+  "Depending on diet, a male's color can range from yellow to orange to deep red.",
+  "House finches have a cheerful, rambling song that often ends in a rising 'zeeer' sound.",
+  "Unlike most songbirds, they feed their chicks mostly plant food rather than insects."],
+ "Downy Woodpecker":[
+  "The Downy is the smallest woodpecker in North America, about the size of a sparrow.",
+  "Males have a small red patch on the back of the head. Females don't.",
+  "Stiff tail feathers act like a prop, helping a woodpecker brace itself against a tree trunk.",
+  "Downies look almost identical to the larger Hairy Woodpecker. A quick clue is the Downy's short, stubby bill.",
+  "In winter, Downy Woodpeckers often travel with chickadees, titmice and nuthatches.",
+  "Males and females tend to feed in different places. Males favor smaller branches and females favor the trunk and larger limbs."],
+ "Red-bellied Woodpecker":[
+  "Despite its name, you'd be hard pressed to see a red belly. The reddish tint is faint, and the bright red is on the head.",
+  "A red-bellied woodpecker can stick its tongue out nearly 2 inches past the end of its bill to grab insects from deep crevices.",
+  "They wedge nuts and seeds into cracks in tree bark to store them for later.",
+  "Their range has been creeping north over the last century, and bird feeders are thought to have helped.",
+  "On males, the red cap runs from the bill to the back of the neck. On females, it covers only the back of the head and a spot above the bill.",
+  "European Starlings sometimes take over their nest holes."],
+ "White-breasted Nuthatch":[
+  "Nuthatches can walk headfirst down a tree trunk, which most birds can't do.",
+  "The name comes from how it wedges a nut into tree bark and whacks it open, or 'hatches' it, with its bill.",
+  "Around its nest hole, it smears crushed insects, which may help keep squirrels away.",
+  "Nuthatches often join chickadees and titmice in mixed winter flocks.",
+  "They stay in the same area all year, and pairs often stay together through the seasons.",
+  "Listen for a nasal, honking 'yank-yank' call."],
+ "Carolina Wren":[
+  "This little bird has a big voice. The male's loud 'teakettle-teakettle-teakettle' song carries a long way.",
+  "It picks odd nesting spots, including flowerpots, mailboxes, boots and hanging baskets.",
+  "The Carolina Wren is the state bird of South Carolina.",
+  "Pairs stay together and defend their territory all year, and they often sing duets.",
+  "A harsh winter can wipe out Carolina Wrens in the north, but they usually bounce back within a few years.",
+  "Look for the bold white eyebrow stripe and a tail that's often cocked up over the back."],
+ "House Wren":[
+  "House wrens happily nest in birdhouses, and males sometimes fill extra cavities with sticks to impress a mate.",
+  "They can be rough neighbors. A house wren may puncture the eggs of other birds nesting nearby.",
+  "Unlike the Carolina Wren, house wrens head south for the winter, to the southern U.S. and Mexico.",
+  "It's one of the most widespread birds in the Americas, found from Canada to the southern tip of South America.",
+  "Males arrive from migration first and claim the nest sites before the females show up.",
+  "Its song is a fast, bubbling jumble of notes."],
+ "Tufted Titmouse":[
+  "Titmice will pluck hair from live animals, including dogs, raccoons and even people, to line their nests.",
+  "'Titmouse' comes from old English words meaning 'small bird'. It has nothing to do with mice.",
+  "A titmouse often grabs one seed from a feeder, flies off to crack it open, and hides some for later.",
+  "Young titmice sometimes stay with their parents through the winter and may help raise the next brood.",
+  "Over the last 50 years, titmice have spread farther north, perhaps thanks to feeders and warmer winters.",
+  "Its clear whistled song sounds like 'peter, peter, peter'."],
+ "Carolina Chickadee":[
+  "A chickadee weighs about as much as four pennies.",
+  "On cold winter nights, chickadees can lower their body temperature to save energy.",
+  "They hide seeds in many places and can remember where hundreds of them are stashed.",
+  "Carolina and Black-capped Chickadees look alike and can interbreed where their ranges meet.",
+  "The Carolina Chickadee sings a four-note whistle, 'fee-bee fee-bay', and its chick-a-dee call is faster than its northern cousin's.",
+  "They nest in tree holes and will happily use a birdhouse with a small round hole."],
+ "Black-capped Chickadee":[
+  "Its 'chick-a-dee-dee-dee' call carries information: the more 'dee' notes, the bigger the threat it has spotted.",
+  "It's the state bird of Maine and Massachusetts.",
+  "On freezing nights a chickadee can lower its body temperature and shiver to stay warm.",
+  "Scientists have found that chickadee brains grow extra memory cells each fall, helping them remember where they hid food.",
+  "Chickadees hide each seed in a separate spot, adding up to thousands over the fall.",
+  "They are curious and bold, and will sometimes take seeds right from a person's hand."],
+ "Eastern Bluebird":[
+  "A bluebird's blue isn't a pigment. Tiny structures in its feathers scatter the light so it looks blue.",
+  "Eastern Bluebirds declined badly in the 1900s from habitat loss and competition with starlings and house sparrows. Nest box programs helped bring them back.",
+  "Bluebirds are thrushes, the same family as American Robins.",
+  "It's the state bird of Missouri and New York.",
+  "A male shows a female a nest hole by carrying in nesting material and fluttering his wings at the entrance.",
+  "In summer they hunt insects by dropping from a perch to the ground, and in winter they switch to berries."],
+ "Common Grackle":[
+  "Grackles have a hard ridge, called a keel, inside the roof of the bill that they use to saw open acorns.",
+  "A grackle's head can shine purple, green or bronze in sunlight, but look plain black in shade.",
+  "Sometimes a grackle spreads its wings and lets ants crawl over its feathers. This is called 'anting' and may help get rid of parasites.",
+  "Its long tail folds into a V shape like the keel of a boat.",
+  "In winter, grackles gather in huge, noisy flocks, often mixed with starlings, cowbirds and other blackbirds.",
+  "Grackles aren't picky. They've been seen catching small fish and mice, and sometimes even other birds."],
+ "European Starling":[
+  "Starlings can mimic other birds, car alarms and even human speech.",
+  "There were almost no starlings in North America until about 1890, when a small group was released in New York's Central Park. They've since spread across the continent.",
+  "A popular story says the release was by a man who wanted America to have every bird mentioned in Shakespeare, though historians aren't sure that was the real reason.",
+  "Huge flocks of starlings flying in swirling shapes are called murmurations.",
+  "In winter a starling is covered in white speckles that wear off by spring, when its bill turns yellow.",
+  "They nest in holes and sometimes drive out native birds like bluebirds and woodpeckers."],
+ "Red-winged Blackbird":[
+  "Males flash red and yellow shoulder patches to claim territory, and can hide them when they want to stay low-key.",
+  "Females are streaky brown and are often mistaken for big sparrows.",
+  "It's one of the most abundant birds in North America.",
+  "Males defend their marsh territory fiercely and will dive at hawks, crows and even people who get too close.",
+  "One male may have several mates nesting in his territory.",
+  "They love cattail marshes and fields. The song sounds like 'conk-la-ree'."],
+ "American Robin":[
+  "Early settlers named it 'robin' because its orange breast reminded them of the European Robin, though the two aren't closely related.",
+  "Many robins stay in Maryland all winter. They switch from worms to berries and move around in flocks, so we just see them less.",
+  "The color 'robin's egg blue' is named for this bird's eggs.",
+  "Robins are among the first birds to sing each morning, often before dawn.",
+  "Robins are thrushes, in the same family as bluebirds.",
+  "It's the state bird of Connecticut, Michigan and Wisconsin."],
+ "Cooper's Hawk":[
+  "Cooper's Hawks hunt other birds, darting through trees at high speed. A feeder that suddenly empties may mean one is nearby.",
+  "The long tail works like a rudder, helping it twist and turn between branches.",
+  "Females are noticeably bigger than males.",
+  "A young Cooper's Hawk has yellow eyes that slowly turn orange, then deep red, as it ages.",
+  "These hawks have adapted to towns and suburbs and now nest in many cities.",
+  "In flight, it flaps a few times and then glides, and its tail is rounded at the tip."],
+ "Fish Crow":[
+  "A Fish Crow looks almost identical to an American Crow. The easiest way to tell them apart is the voice: a nasal 'uh-uh' instead of a 'caw'.",
+  "Despite the name, it eats much more than fish, including crabs, eggs, insects, fruit and food scraps.",
+  "It's slightly smaller than an American Crow.",
+  "Fish Crows are usually found near water, such as coasts, rivers and marshes, though they've been spreading inland.",
+  "Over the last century, the Fish Crow has been extending its range northward along the Atlantic coast.",
+  "In winter they often roost in large flocks, sometimes mixed with American Crows."],
+ "Gray Catbird":[
+  "The catbird is named for its cat-like 'mew' call.",
+  "It's a mimic that can copy the songs of other birds, and sometimes frog calls and machine sounds.",
+  "Unlike mockingbirds, catbirds rarely repeat a phrase, so their song seems to ramble on and on.",
+  "Catbirds are known to recognize and remove cowbird eggs from their nests.",
+  "It's a close relative of the Northern Mockingbird and the Brown Thrasher.",
+  "Look for a rusty-red patch under the tail on an otherwise slate-gray bird with a black cap."],
+ "Yellow-bellied Sapsucker":[
+  "Sapsuckers drill neat rows of small holes in trees, then come back to lick the sap and eat the insects caught in it.",
+  "Hummingbirds and other animals visit the sap wells too.",
+  "It's the only truly migratory woodpecker in eastern North America.",
+  "Males have a red throat and forehead. Females have a white throat.",
+  "Its drumming is irregular, a bit like Morse code, instead of the steady rattle of other woodpeckers.",
+  "The 'yellow belly' is really a pale yellow that is often hard to see."],
+ "Brown-headed Cowbird":[
+  "Cowbirds never build a nest. A female sneaks her eggs into the nests of other birds, which raise her chicks.",
+  "A single female can lay up to 40 eggs in a season, in many different nests.",
+  "Cowbird eggs have been found in the nests of more than 220 species of birds.",
+  "The name comes from the way cowbirds follow cattle, and once bison, to catch the insects they stir up.",
+  "Young cowbirds raised by other species somehow know they're cowbirds. They respond to the cowbird 'chatter' call without being taught.",
+  "If a host bird removes a cowbird egg, the cowbird may come back and destroy the host's own eggs."],
+ "Northern Mockingbird":[
+  "Mockingbirds can learn dozens of songs, including other birds, car alarms and squeaky gates.",
+  "Some mockingbirds sing at night, especially under a bright moon.",
+  "They defend their nests fiercely, diving at dogs, cats and people. In one study, they learned to recognize a particular person who had approached a nest.",
+  "The Northern Mockingbird is the state bird of Arkansas, Florida, Mississippi, Tennessee and Texas.",
+  "Its scientific name, Mimus polyglottos, means 'many-tongued mimic'.",
+  "A mockingbird flashes the white patches on its wings, which may startle insects into moving so it can catch them."],
+ "Rose-breasted Grosbeak":[
+  "Males have a rose-red triangle on their white chests and rosy-pink wing linings that show in flight.",
+  "Females are streaky brown with a bold white eyebrow and look more like large sparrows.",
+  "Both parents take turns sitting on the eggs, and males sometimes sing from the nest.",
+  "They spend the winter in Central America and northern South America, and many cross the Gulf of Mexico during migration.",
+  "Their thick bills crack seeds easily, and they also eat insects, including potato beetles.",
+  "Its song is like a robin's, but sweeter and more rapid."],
+ "Baltimore Oriole":[
+  "It's Maryland's state bird. Its black and orange colors are said to have reminded settlers of Lord Baltimore's coat of arms.",
+  "The Baltimore Orioles baseball team is named after the bird.",
+  "Orioles weave sock-shaped nests that hang from the tips of branches.",
+  "At feeders they love orange halves and grape jelly.",
+  "Orioles spend the winter in Central America and northern South America.",
+  "Males sing a rich, whistled song, and females sing too."],
+ "Ruby-throated Hummingbird":[
+  "Its wings beat around 50 times a second, which is what makes the humming sound.",
+  "Hummingbirds can hover and even fly backwards.",
+  "Each fall many fly nonstop across the Gulf of Mexico, a trip of roughly 500 miles.",
+  "It's the only hummingbird that regularly nests in the eastern United States.",
+  "Only males have the glowing red throat patch. Females have a white throat.",
+  "A ruby-throated hummingbird weighs about 3 grams, less than a nickel."],
+ "Northern Flicker":[
+  "It's a woodpecker that spends lots of time on the ground eating ants. One scientist counted more than 5,000 ants in a single flicker's stomach.",
+  "It's Alabama's state bird, where it's called the 'yellowhammer'. Alabama is the only state with a woodpecker as its state bird.",
+  "Its tongue can stick out about 2 inches past the bill, the longest of any North American woodpecker.",
+  "In flight, look for a bright white patch above the tail and yellow flashes under the wings and tail.",
+  "Flickers sometimes drum on metal gutters and chimney caps to make a louder noise.",
+  "People have given flickers well over 100 nicknames, including 'wake-up' and 'yarrup'."],
+ "Dark-eyed Junco":[
+  "Juncos are often called 'snowbirds' because they show up at feeders when winter arrives.",
+  "They flash white outer tail feathers when they fly.",
+  "There are several different-looking kinds of Dark-eyed Junco in North America, and scientists once counted them as separate species.",
+  "Many juncos you see in Maryland in winter nest much farther north, though some nest in the mountains of western Maryland.",
+  "They hop around under feeders, scratching at the ground for dropped seed.",
+  "Juncos are a kind of sparrow."],
+ "Pileated Woodpecker":[
+  "It's about the size of a crow, one of the largest woodpeckers in North America.",
+  "It chisels large, rectangular holes in trees when hunting for carpenter ants.",
+  "The holes it leaves behind become homes for other animals, including owls, wood ducks, bats and squirrels.",
+  "You can say its name two ways: 'PIE-lee-ay-ted' or 'PILL-ee-ay-ted'.",
+  "Males have a red stripe on the cheek, like a mustache. Females don't.",
+  "A mated pair usually stays on the same territory all year."],
+ "White-throated Sparrow":[
+  "Its whistled song is often written as 'Old Sam Peabody, Peabody, Peabody.' In Canada some people hear 'Oh sweet Canada, Canada, Canada.'",
+  "There are two types, one with white head stripes and one with tan stripes, and they almost always pair up with the opposite type.",
+  "You'll often see it scratching in the leaf litter under feeders in winter.",
+  "Look for a bright yellow spot between the eye and the bill.",
+  "Most winter in the southeastern U.S. and breed far to the north, in Canada and the northern states."],
+ "Mallard":[
+  "The Mallard is the ancestor of most domestic ducks.",
+  "Only the female quacks loudly. Males make softer, raspier calls.",
+  "Mallards sleeping at the edge of a group have been seen sleeping with one eye open, watching for danger.",
+  "The male's green head is iridescent, so it can look dark in some light.",
+  "Ducklings can swim and feed themselves within hours of hatching.",
+  "In summer the male molts into a dull brown plumage that looks like the female's."]
+};
+/* choose a fun fact for a bird: go through all of its facts in random order before any repeats */
+function nextFact(bird){
+  const list = FACTS[bird.name] || [bird.fact];
+  const shuf = a => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+  let bag = saved.factBag[bird.name];
+  if(!Array.isArray(bag) || !bag.length || bag.some(i=>!(i>=0 && i<list.length))){
+    bag = shuf(list.map((_,i)=>i));
+    const last = saved.factLast[bird.name];
+    if(bag.length>1 && bag[bag.length-1]===last){ const t=bag[0]; bag[0]=bag[bag.length-1]; bag[bag.length-1]=t; }   // never repeat the last one shown
+  }
+  const i = bag.pop();
+  saved.factBag[bird.name]=bag; saved.factLast[bird.name]=i; store.save(saved);
+  return list[i];
+}
+const factHtml = bird => '<div style="margin-top:8px">💡 <b>Fun fact:</b> '+esc(nextFact(bird))+'</div>';
 
 /* ---------- game state ---------- */
 let pool=[], queue=[], spares=[], skipped=new Set(), idx=0, score=0, cur=null, attempts=0, hinted=false, answered=false, missedThisRound=[];
@@ -379,11 +621,11 @@ function finish(points, how){
   if(points>0){
     saved.missed[cur.name]=Math.max(0,(saved.missed[cur.name]||0)-1);
     $("msg").innerHTML='<div class="msg good"><h2>✅ '+esc(cur.name)+' <span class="tag">+'+points+'</span><span class="tag">'+tag+'</span></h2>'+
-      (how==="close"?'<div>Close enough! Spelling: <b>'+esc(cur.name)+'</b>.</div>':'')+esc(cur.fact)+'</div>';
+      (how==="close"?'<div>Close enough! Spelling: <b>'+esc(cur.name)+'</b>.</div>':'')+factHtml(cur)+'</div>';
   } else {
     saved.missed[cur.name]=(saved.missed[cur.name]||0)+1;
     missedThisRound.push(cur.name);
-    $("msg").innerHTML='<div class="msg bad"><h2>It was the '+esc(cur.name)+' <span class="tag">'+tag+'</span></h2>'+esc(cur.fact)+'</div>';
+    $("msg").innerHTML='<div class="msg bad"><h2>It was the '+esc(cur.name)+' <span class="tag">'+tag+'</span></h2>'+factHtml(cur)+'</div>';
   }
   store.save(saved);
   $("next").textContent = roundCount>=roundTotal ? "See results" : "Next bird →";

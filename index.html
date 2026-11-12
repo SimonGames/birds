@@ -78,7 +78,7 @@
       <option value="10" selected>10</option>
       <option value="20">20</option>
       <option value="5">5 (quick)</option>
-      <option value="32">All 32</option>
+      <option value="33">All 33</option>
     </select>
     <div style="margin-top:14px"><button id="go" style="width:100%">Start round</button></div>
     <p class="sub" id="countline" style="margin-bottom:0"></p>
@@ -123,7 +123,7 @@
     </div>
   </section>
 
-  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 12-Nov-2026 (e)</footer>
+  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Needs an internet connection.<br>Version 12-Nov-2026 (f)</footer>
 </div>
 
 <script>
@@ -132,6 +132,7 @@ const BIRDS = [
  ["Northern Cardinal","F",["cardinal","redbird"],"Both males and females sing, which is unusual among North American songbirds."],
  ["Blue Jay","F",["bluejay","jay"],"Can imitate the call of a red-shouldered hawk."],
  ["Mallard","R",["mallard duck","duck"],"Males have glossy green heads."],
+ ["Wild Turkey","R",["turkey"],"Roosts in trees at night despite its size.","Wild turkey"],
  ["Mourning Dove","F",["dove"],"Its wings make a whistling sound when it takes off."],
  ["American Goldfinch","F",["goldfinch"],"Males turn bright yellow in spring and dull olive-brown in winter."],
  ["House Finch","F",["housefinch"],"A male's red color comes from pigments in the food he eats."],
@@ -161,7 +162,7 @@ const BIRDS = [
  ["Northern Flicker","S",["flicker","yellow shafted flicker"],"A woodpecker that often feeds on the ground, eating ants."],
  ["Rose-breasted Grosbeak","F",["grosbeak","rose breasted grosbeak"],"Males have a rose-red triangle on a white chest; seen mainly in spring migration."],
  ["Baltimore Oriole","F",["oriole"],"Maryland's state bird, and the namesake of the baseball team."],
-].map(([name,g,aliases,fact])=>({name,g,aliases,fact}));
+].map(([name,g,aliases,fact,wiki])=>({name,g,aliases,fact,wiki}));
 
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -239,7 +240,7 @@ async function getJSON(url){
 async function findImage(bird){
   // 1) direct page summary
   try{
-    const d = await getJSON("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(bird.name.replace(/ /g,"_")));
+    const d = await getJSON("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent((bird.wiki||bird.name).replace(/ /g,"_")));
     const img = d.originalimage||d.thumbnail;
     if(d.type==="standard" && img && isPhoto(img.source)) return {orig:img.source, thumb:(d.thumbnail&&d.thumbnail.source)||img.source};
   }catch(e){}
@@ -499,6 +500,13 @@ const FACTS = {
   "You'll often see it scratching in the leaf litter under feeders in winter.",
   "Look for a bright yellow spot between the eye and the bill.",
   "Most winter in the southeastern U.S. and breed far to the north, in Canada and the northern states."],
+ "Wild Turkey":[
+  "Despite their size, wild turkeys can fly short distances at up to about 55 mph, and they can run about 25 mph.",
+  "At night they roost in trees to stay safe from predators.",
+  "Only the males, called toms, gobble. Females, called hens, make clucks and yelps. Babies are called poults.",
+  "Benjamin Franklin once wrote that the turkey was a more respectable bird than the bald eagle, though he never proposed it as the national bird.",
+  "Hunting and habitat loss nearly wiped out wild turkeys by the early 1900s. Restocking brought them back, and they now live in nearly every state.",
+  "A male's bare head and neck can change color between red, white and blue depending on his mood."],
  "Mallard":[
   "The Mallard is the ancestor of most domestic ducks.",
   "Only the female quacks loudly. Males make softer, raspier calls.",

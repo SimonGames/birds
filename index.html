@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simon's Birdfeeder Birds - Name that Bird</title>
+<style>
+  :root{
+    --bg:#f3f1e8; --card:#fffdf7; --ink:#26302a; --muted:#6a7568;
+    --green:#2f6b4f; --green-d:#22503b; --gold:#e0a526; --red:#b5453a; --line:#ddd8c6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;line-height:1.45}
+  .wrap{max-width:640px;margin:0 auto;padding:16px 14px 40px}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  h1{font-size:1.5rem;margin:0;color:var(--green-d)}
+  .sub{color:var(--muted);font-size:.9rem;font-family:system-ui,sans-serif}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .hidden{display:none!important}
+  button,select,input{font:inherit}
+  button{cursor:pointer;border:0;border-radius:10px;padding:11px 16px;background:var(--green);color:#fff;
+    font-family:system-ui,sans-serif;font-weight:600;font-size:1rem}
+  button:hover{background:var(--green-d)}
+  button.ghost{background:transparent;color:var(--green-d);border:1px solid var(--line)}
+  button.ghost:hover{background:#efeadb}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row > *{flex:1 1 auto}
+  label{display:block;font-family:system-ui,sans-serif;font-size:.85rem;color:var(--muted);margin:10px 0 4px}
+  select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#fff}
+  .status{display:flex;justify-content:space-between;font-family:system-ui,sans-serif;font-size:.9rem;
+    color:var(--muted);margin-bottom:8px}
+  .status b{color:var(--ink)}
+  .photo{position:relative;background:#e6e2d2;border-radius:10px;overflow:hidden;min-height:220px;
+    display:flex;align-items:center;justify-content:center}
+  .photo img{display:block;width:100%;max-height:60vh;object-fit:contain;background:#222}
+  .loading{position:absolute;color:var(--muted);font-family:system-ui,sans-serif}
+  .credit{font-family:system-ui,sans-serif;font-size:.72rem;color:var(--muted);margin:6px 2px 0;min-height:1em}
+  .credit a{color:inherit}
+  .linkbtn{background:none;color:var(--muted);border:0;padding:4px 2px;font-size:.75rem;font-weight:400;text-decoration:underline;font-family:system-ui,sans-serif}
+  .linkbtn:hover{background:none;color:var(--ink)}
+  .linkbtn:disabled{text-decoration:none}
+  .guess{display:flex;gap:8px;margin-top:12px}
+  .guess input{flex:1;min-width:0;padding:12px;border-radius:10px;border:2px solid var(--line);font-size:1.1rem;background:#fff}
+  .guess input:focus{outline:none;border-color:var(--green)}
+  .guess input.shake{animation:shake .3s;border-color:var(--red)}
+  @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .mic{flex:0 0 auto;padding:10px 14px;font-size:1.25rem;line-height:1}
+  .mic.on{background:var(--red);border-color:var(--red);animation:pulse 1s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(181,69,58,.25)}}
+  .tools{margin-top:8px}
+  .tools button{flex:1}
+  .msg{margin-top:12px;padding:12px;border-radius:10px;font-family:system-ui,sans-serif}
+  .msg.good{background:#e1f0e5;border:1px solid #b6d8c0}
+  .msg.bad{background:#f7e4e1;border:1px solid #e5bcb6}
+  .msg.info{background:#f6efd5;border:1px solid #e6d79a}
+  .msg h2{margin:0 0 4px;font-size:1.15rem;font-family:Georgia,serif}
+  .tag{display:inline-block;font-size:.72rem;background:#e8e3d0;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+  .hint{font-family:ui-monospace,Menlo,monospace;letter-spacing:.15em;font-size:1.1rem}
+  ul.missed{padding-left:18px;margin:6px 0 0}
+  .big{font-size:2.2rem;font-weight:700;color:var(--green-d);margin:4px 0}
+  footer{margin-top:16px;color:var(--muted);font-family:system-ui,sans-serif;font-size:.75rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🐦 Simon's Birdfeeder Birds <span style="font-weight:400;font-size:1.05rem;color:var(--muted)">– Name that Bird</span></h1>
+    <span class="sub" id="best"></span>
+  </header>
+
+  <!-- Start screen -->
+  <section id="start" class="card">
+    <p style="margin-top:0">A photo appears and you type the bird's name. Spelling doesn't have to be perfect, and common short names
+       like "chickadee" or "downy" work too.</p>
+    <label for="len">Birds per round</label>
+    <select id="len">
+      <option value="10" selected>10</option>
+      <option value="20">20</option>
+      <option value="5">5 (quick)</option>
+      <option value="31">All 31</option>
+    </select>
+    <div style="margin-top:14px"><button id="go" style="width:100%">Start round</button></div>
+    <p class="sub" id="countline" style="margin-bottom:0"></p>
+  </section>
+
+  <!-- Game screen -->
+  <section id="game" class="card hidden">
+    <div class="status"><span id="prog"></span><span>Score <b id="score">0</b></span></div>
+    <div class="photo">
+      <span class="loading" id="loading">Finding a photo…</span>
+      <img id="img" alt="Bird to identify" class="hidden">
+    </div>
+    <div class="credit" id="credit"></div>
+    <button type="button" class="linkbtn hidden" id="badPhoto">🚩 Wrong or bad photo</button>
+
+    <form class="guess" id="form" autocomplete="off">
+      <input id="answer" type="text" placeholder="Type the bird's name" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      <button type="button" id="mic" class="ghost mic hidden" title="Speak your answer" aria-label="Speak your answer">🎤</button>
+      <button type="submit" id="check">Guess</button>
+    </form>
+    <div class="row tools" id="tools">
+      <button class="ghost" id="hintBtn" type="button">Hint (−1 pt)</button>
+      <button class="ghost" id="skipBtn" type="button">Skip for now</button>
+      <button class="ghost" id="giveUp" type="button">Show answer</button>
+    </div>
+
+    <div id="msg"></div>
+    <div class="row" style="margin-top:10px"><button id="next" class="hidden">Next bird →</button></div>
+  </section>
+
+  <!-- End screen -->
+  <section id="end" class="card hidden">
+    <h2 style="margin-top:0">Round complete</h2>
+    <div class="big" id="finalScore"></div>
+    <div id="finalNote" class="sub"></div>
+    <div id="missedBox" class="hidden" style="margin-top:12px">
+      <b>Ones to study:</b>
+      <ul class="missed" id="missedList"></ul>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="again">Play again</button>
+      <button id="menu" class="ghost">Change settings</button>
+    </div>
+  </section>
+
+  <footer>Photos from Wikipedia / Wikimedia Commons, credited under each picture. Each bird has several photos, picked at random. If one looks wrong, tap 🚩. Needs an internet connection.</footer>
+</div>
+
+<script>
+/* group: F = feeder, S = suet, R = other Maryland birds */
+const BIRDS = [
+ ["Northern Cardinal","F",["cardinal","redbird"],"Both males and females sing, which is unusual among North American songbirds."],
+ ["Blue Jay","F",["bluejay","jay"],"Can imitate the call of a red-shouldered hawk."],
+ ["Mourning Dove","F",["dove"],"Its wings make a whistling sound when it takes off."],
+ ["American Goldfinch","F",["goldfinch"],"Males turn bright yellow in spring and dull olive-brown in winter."],
+ ["House Finch","F",["housefinch"],"A male's red color comes from pigments in the food he eats."],
+ ["Dark-eyed Junco","F",["junco","snowbird"],"Flashes white outer tail feathers in flight; a classic winter feeder bird."],
+ ["Downy Woodpecker","S",["downy"],"The smallest woodpecker in North America."],
+ ["Pileated Woodpecker","S",["pileated"],"Crow-sized with a red crest; chisels big rectangular holes in trees."],
+ ["Red-bellied Woodpecker","S",["red bellied woodpecker"],"The red belly tint is faint; the bright red is on the head and nape."],
+ ["White-breasted Nuthatch","F",["nuthatch","white breasted nuthatch"],"Climbs down tree trunks headfirst, which most birds don't do."],
+ ["Black-capped Chickadee","F",["blackcapped chickadee"],"Adds more 'dee' notes to its chick-a-dee call when it spots a bigger threat."],
+ ["Carolina Wren","F",[],"Loud for its size; sometimes nests in flowerpots, mailboxes and boots."],
+ ["House Wren","F",["housewren"],"Readily nests in birdhouses; males sing a bubbly, rambling song."],
+ ["Tufted Titmouse","F",["titmouse"],"Often grabs a single sunflower seed and flies off to crack it open on a branch."],
+ ["Carolina Chickadee","F",[],"Tiny, but it caches seeds one at a time to eat later."],
+ ["Eastern Bluebird","F",["bluebird"],"Nests in cavities and nest boxes."],
+ ["Common Grackle","F",["grackle"],"Glossy, iridescent head and a long, keel-shaped tail."],
+ ["European Starling","F",["starling"],"Introduced to New York in 1890; a talented mimic."],
+ ["Red-winged Blackbird","F",["red winged blackbird","redwing"],"Males flash red and yellow shoulder patches when displaying."],
+ ["American Robin","F",["robin"],"Many robins stay in Maryland all winter instead of heading south."],
+ ["Cooper's Hawk","R",["coopers hawk","cooper hawk"],"Hunts songbirds around feeders, chasing them through the trees."],
+ ["Fish Crow","R",["crow"],"Looks like an American Crow but sounds nasal: 'uh-uh'."],
+ ["Gray Catbird","F",["catbird","grey catbird"],"Named for its cat-like mew; also mimics other birds."],
+ ["Yellow-bellied Sapsucker","S",["sapsucker","yellow bellied sapsucker"],"Drills neat rows of small holes in trees and returns to drink the sap."],
+ ["Brown-headed Cowbird","F",["cowbird","brown headed cowbird"],"Lays its eggs in other birds' nests."],
+ ["Northern Mockingbird","F",["mockingbird"],"Can learn dozens of songs and will sing at night."],
+ ["White-throated Sparrow","F",["sparrow"],"Its whistled song is often written as 'Old Sam Peabody, Peabody, Peabody.'"],
+ ["Ruby-throated Hummingbird","F",["hummingbird","hummer"],"The only hummingbird that regularly nests in the eastern U.S."],
+ ["Northern Flicker","S",["flicker","yellow shafted flicker"],"A woodpecker that often feeds on the ground, eating ants."],
+ ["Rose-breasted Grosbeak","F",["grosbeak","rose breasted grosbeak"],"Males have a rose-red triangle on a white chest; seen mainly in spring migration."],
+ ["Baltimore Oriole","F",["oriole"],"Maryland's state bird, and the namesake of the baseball team."],
+].map(([name,g,aliases,fact])=>({name,g,aliases,fact}));
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const norm = s => s.toLowerCase().replace(/&/g,"and").replace(/[^a-z]/g,"");
+/* edit distance where a swapped pair of neighbouring letters ("catbrid") counts as one typo */
+function lev(a,b){
+  const m=a.length,n=b.length;
+  const d=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) d[i][0]=i;
+  for(let j=0;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const c=a[i-1]===b[j-1]?0:1;
+      d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);
+      if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1);
+    }
+  }
+  return d[m][n];
+}
+/* how many typos we forgive depends on the length of the name */
+const tolFor = len => len<=4 ? 0 : len<=6 ? 1 : len<=10 ? 2 : 3;
+const nameForms = b => [b.name,...b.aliases].map(norm);
+/* returns "exact" | "close" | "no" */
+function judge(guess,bird){
+  const g=norm(guess); if(!g) return "no";
+  const mine=nameForms(bird);
+  if(mine.includes(g)) return "exact";
+  let best=99;
+  for(const n of mine){
+    const tol=tolFor(n.length), dist=lev(g,n);
+    if(dist<=tol) best=Math.min(best,dist);
+  }
+  if(best===99) return "no";
+  // Only accept a misspelling if no OTHER bird is an equal or better match
+  for(const o of BIRDS){
+    if(o===bird) continue;
+    for(const n of nameForms(o)){
+      if(lev(g,n)<=best && lev(g,n)<=tolFor(n.length)) return "no";
+    }
+  }
+  return "close";
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------- storage (optional) ---------- */
+const store = {
+  load(){ try{ return JSON.parse(localStorage.getItem("mdbirds")||"{}"); }catch(e){ return {}; } },
+  save(d){ try{ localStorage.setItem("mdbirds",JSON.stringify(d)); }catch(e){} }
+};
+let saved = store.load();
+saved.best = saved.best||{}; saved.missed = saved.missed||{}; saved.seen = saved.seen||{}; saved.blocked = saved.blocked||[];
+
+/* ---------- photo lookup (Wikipedia / Wikimedia Commons) ---------- */
+/* Scientific names = Wikimedia Commons category names, used to find several photos of each species. */
+const SCI = {
+ "Northern Cardinal":["Cardinalis cardinalis"],
+ "Blue Jay":["Cyanocitta cristata"],
+ "Mourning Dove":["Zenaida macroura"],
+ "American Goldfinch":["Spinus tristis","Carduelis tristis"],
+ "House Finch":["Haemorhous mexicanus","Carpodacus mexicanus"],
+ "Downy Woodpecker":["Dryobates pubescens","Picoides pubescens"],
+ "Red-bellied Woodpecker":["Melanerpes carolinus"],
+ "Pileated Woodpecker":["Dryocopus pileatus"],
+ "Northern Flicker":["Colaptes auratus"],
+ "Yellow-bellied Sapsucker":["Sphyrapicus varius"],
+ "White-breasted Nuthatch":["Sitta carolinensis"],
+ "Carolina Wren":["Thryothorus ludovicianus"],
+ "House Wren":["Troglodytes aedon"],
+ "Tufted Titmouse":["Baeolophus bicolor"],
+ "Carolina Chickadee":["Poecile carolinensis"],
+ "Black-capped Chickadee":["Poecile atricapillus"],
+ "Eastern Bluebird":["Sialia sialis"],
+ "Common Grackle":["Quiscalus quiscula"],
+ "European Starling":["Sturnus vulgaris"],
+ "Red-winged Blackbird":["Agelaius phoeniceus"],
+ "American Robin":["Turdus migratorius"],
+ "Cooper's Hawk":["Accipiter cooperii"],
+ "Fish Crow":["Corvus ossifragus"],
+ "Gray Catbird":["Dumetella carolinensis"],
+ "Brown-headed Cowbird":["Molothrus ater"],
+ "Northern Mockingbird":["Mimus polyglottos"],
+ "Rose-breasted Grosbeak":["Pheucticus ludovicianus"],
+ "Baltimore Oriole":["Icterus galbula"],
+ "Ruby-throated Hummingbird":["Archilochus colubris"],
+ "Dark-eyed Junco":["Junco hyemalis"],
+ "White-throated Sparrow":["Zonotrichia albicollis"]
+};
+/* file names / categories that mean "not an ordinary photo of the live bird" */
+const BADWORDS = /\b(eggs?|nests?|nestlings?|skeletons?|skulls?|specimens?|museum|map|distribution|drawings?|illustrations?|paintings?|plates?|stamps?|sketch(es)?|feathers?|footprints?|spectrograms?|taxiderm\w*|bones|lithographs?|engravings?|coins?|logos?|cartoons?|statues?|chicks?|diagrams?|silhouettes?)\b/i;
+const strip = h => (h&&h.value||"").replace(/<[^>]*>/g,"").replace(/\s+/g," ").trim();
+const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+
+const photoLists = new Map();   // bird name -> Promise<array of photos> (kept for the whole visit)
+const plan = new Map();         // bird name -> the photo chosen for the current round
+
+async function getJSON(url){
+  const r = await fetch(url); if(!r.ok) throw new Error(r.status);
+  return r.json();
+}
+const COMMONS = "https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*"+
+  "&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=960&iiextmetadatafilter=Artist|LicenseShortName|Categories";
+
+/* turn a Commons API answer into usable photo records */
+function toPhotos(d, allowPng){
+  const pages = d && d.query && d.query.pages ? Object.values(d.query.pages) : [];
+  const out = [];
+  for(const pg of pages){
+    const ii = pg.imageinfo && pg.imageinfo[0]; if(!ii) continue;
+    if(!(ii.mime==="image/jpeg" || (allowPng && ii.mime==="image/png"))) continue;
+    if((ii.width||0) < 700 || (ii.height||0) < 450) continue;
+    const m = ii.extmetadata || {};
+    const cats = ((m.Categories&&m.Categories.value)||"").replace(/\|/g," ");
+    if(BADWORDS.test(pg.title.replace(/[_.]/g," ")+" "+cats)) continue;
+    out.push({ id:pg.title, src:ii.thumburl||ii.url, fallback:ii.url,
+      credit:{ artist:strip(m.Artist)||"Unknown", license:strip(m.LicenseShortName), page:ii.descriptionurl } });
+  }
+  return out;
+}
+async function commonsTitles(titles, allowPng){
+  if(!titles.length) return [];
+  return toPhotos(await getJSON(COMMONS+"&titles="+encodeURIComponent(titles.join("|"))), allowPng);
+}
+async function commonsCategory(cat){
+  return toPhotos(await getJSON(COMMONS+"&generator=categorymembers&gcmtype=file&gcmlimit=50&gcmtitle="+encodeURIComponent("Category:"+cat)), false);
+}
+/* the picture at the top of the bird's Wikipedia article: always a good, correct photo */
+async function wikipediaLeadTitle(bird){
+  const fileOf = u => "File:"+decodeURIComponent(u.split("/").filter(Boolean).pop().split("?")[0]);
+  try{
+    const d = await getJSON("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(bird.name.replace(/ /g,"_")));
+    const img = d.originalimage||d.thumbnail;
+    if(d.type==="standard" && img) return fileOf(img.source);
+  }catch(e){}
+  try{
+    const q = encodeURIComponent(bird.name+" bird");
+    const d = await getJSON("https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=1&gsrsearch="+q+"&prop=pageimages&piprop=original");
+    const pg = d.query && Object.values(d.query.pages)[0];
+    if(pg && pg.original) return fileOf(pg.original.source);
+  }catch(e){}
+  return null;
+}
+async function gatherPhotos(bird){
+  const out = [];
+  const add = list => { for(const c of list) if(!out.some(o=>o.id===c.id)) out.push(c); };
+  // 1) the Wikipedia lead photo
+  try{ const t = await wikipediaLeadTitle(bird); if(t) add(await commonsTitles([t], true)); }catch(e){}
+  // 2) more photos from the species' Commons category
+  for(const cat of (SCI[bird.name]||[])){
+    try{ add(shuffle(await commonsCategory(cat)).slice(0,30)); }catch(e){}
+    if(out.length>=8) break;
+  }
+  // 3) still short? use the other pictures from the Wikipedia article
+  if(out.length<2){
+    try{
+      const d = await getJSON("https://en.wikipedia.org/api/rest_v1/page/media-list/"+encodeURIComponent(bird.name.replace(/ /g,"_")));
+      const titles = (d.items||[]).filter(i=>i.type==="image" && /\.jpe?g$/i.test(i.title||""))
+        .map(i=>/^File:/i.test(i.title)?i.title:"File:"+i.title).slice(0,20);
+      add(await commonsTitles(titles, false));
+    }catch(e){}
+  }
+  const blocked = new Set(saved.blocked);
+  return shuffle(out.filter(c=>!blocked.has(c.id)));
+}
+function loadPhotos(bird){
+  if(!photoLists.has(bird.name)) photoLists.set(bird.name, gatherPhotos(bird));
+  return photoLists.get(bird.name);
+}
+/* random choice, avoiding the last few photos shown for this bird */
+function pickPhoto(bird, list){
+  if(!list.length) return null;
+  const recent = new Set(saved.seen[bird.name]||[]);
+  let opts = list.filter(c=>!recent.has(c.id)); if(!opts.length) opts = list;
+  return opts[Math.floor(Math.random()*opts.length)];
+}
+function recordSeen(bird, c){
+  const a = (saved.seen[bird.name]||[]).filter(x=>x!==c.id); a.push(c.id);
+  saved.seen[bird.name] = a.slice(-4); store.save(saved);
+}
+function preloadImg(src){ const i=new Image(); i.src=src; }
+
+/* ---------- game state ---------- */
+let pool=[], queue=[], spares=[], skipped=new Set(), idx=0, score=0, cur=null, attempts=0, hinted=false, answered=false, missedThisRound=[];
+let roundLen=10, roundTotal=10;
+
+function weightedPick(list, n){
+  const items = list.map(b=>({b, w:1+Math.min(3,(saved.missed[b.name]||0))*1.5}));
+  const out=[];
+  while(out.length<n && items.length){
+    const total=items.reduce((s,i)=>s+i.w,0);
+    let r=Math.random()*total, k=0;
+    for(;k<items.length;k++){ r-=items[k].w; if(r<=0) break; }
+    k=Math.min(k,items.length-1);
+    out.push(items.splice(k,1)[0].b);
+  }
+  return out;
+}
+function poolFor(mode){ return BIRDS.slice(); }
+function show(id){ for(const s of ["start","game","end"]) $(s).classList.toggle("hidden",s!==id); }
+
+function refreshStartInfo(){
+  const mode="all";
+  $("countline").textContent = poolFor(mode).length+" birds in this set.";
+  const b=saved.best[mode+"-"+$("len").value];
+  $("best").textContent = b!=null ? "Best for this setting: "+b : "";
+}
+$("len").onchange=refreshStartInfo;
+
+function startRound(){
+  const mode="all"; roundLen=+$("len").value;
+  pool=poolFor(mode);
+  // the round itself, plus a few spares in case a photo can't be found
+  const picks=weightedPick(pool, Math.min(pool.length, roundLen+6));
+  queue=picks.slice(0,roundLen); spares=picks.slice(roundLen);
+  roundTotal=queue.length; skipped=new Set(); plan.clear();
+  idx=0; score=0; missedThisRound=[]; roundCount=0;
+  $("score").textContent=0;
+  show("game");
+  nextBird();
+}
+let roundCount=0;
+async function nextBird(){
+  if(roundCount>=roundTotal || idx>=queue.length){ return endRound(); }
+  cur=queue[idx++]; attempts=0; hinted=false; answered=false; skipped.delete(cur.name);
+  $("msg").innerHTML=""; $("next").classList.add("hidden");
+  $("answer").value=""; $("answer").disabled=false; $("check").disabled=false;
+  $("hintBtn").disabled=false; $("giveUp").disabled=false; $("tools").classList.remove("hidden");
+  $("skipBtn").disabled = idx>=queue.length;   // nothing to come back after if this is the last bird
+  $("img").classList.add("hidden"); $("img").removeAttribute("src");
+  $("credit").textContent=""; $("badPhoto").classList.add("hidden");
+  $("loading").textContent="Finding a photo…"; $("loading").classList.remove("hidden");
+  updateProg();
+  const bird=cur;
+  const list = await loadPhotos(bird);
+  if(bird!==cur) return;
+  showPhoto(bird,list);
+  // get the next bird's photo ready
+  const nxt=queue[idx];
+  if(nxt) loadPhotos(nxt).then(l=>{
+    if(!plan.has(nxt.name)){ const c=pickPhoto(nxt,l); if(c){ plan.set(nxt.name,c); preloadImg(c.src); } }
+  });
+}
+function showPhoto(bird, list){
+  let c=plan.get(bird.name);
+  if(!c){ c=pickPhoto(bird,list); if(c) plan.set(bird.name,c); }
+  if(!c) return noPhoto(bird);
+  recordSeen(bird,c);
+  const img=$("img");
+  img.classList.add("hidden"); $("loading").textContent="Finding a photo…"; $("loading").classList.remove("hidden");
+  img.onload=()=>{ if(bird!==cur) return; $("loading").classList.add("hidden"); img.classList.remove("hidden"); if(!answered) $("answer").focus(); };
+  img.onerror=()=>{
+    if(bird!==cur) return;
+    if(c.fallback && img.src!==c.fallback){ img.src=c.fallback; }
+    else dropPhoto(bird,c,false);
+  };
+  img.src=c.src;
+  $("credit").innerHTML="Photo: "+esc(c.credit.artist)+(c.credit.license?" · "+esc(c.credit.license):"")+
+    " · <a href=\""+esc(c.credit.page||"https://commons.wikimedia.org")+"\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>";
+  $("badPhoto").textContent="🚩 Wrong or bad photo"; $("badPhoto").disabled=false; $("badPhoto").classList.remove("hidden");
+}
+/* a photo failed to load or the player flagged it: remove it and show another of the same bird */
+async function dropPhoto(bird, c, permanent){
+  if(permanent){ saved.blocked.push(c.id); store.save(saved); }
+  const list=await loadPhotos(bird);
+  const i=list.indexOf(c); if(i>=0) list.splice(i,1);
+  plan.delete(bird.name);
+  if(bird!==cur) return;
+  if(answered){ $("badPhoto").textContent="Thanks, that photo is hidden from now on"; $("badPhoto").disabled=true; return; }
+  showPhoto(bird,list);
+}
+function noPhoto(bird){ // no usable photo at all: swap in a spare bird, or shorten the round
+  if(navigator.onLine===false){ $("loading").textContent="No internet connection. Connect and reload."; return; }
+  skipped.delete(bird.name);
+  if(spares.length) queue.splice(idx,0,spares.shift()); else roundTotal--;
+  nextBird();
+}
+
+function updateProg(){
+  const waiting=skipped.size;
+  $("prog").textContent="Bird "+Math.min(roundCount+1,roundTotal)+" of "+roundTotal+
+    (waiting? " · "+waiting+" skipped, coming back":"");
+}
+function skipBird(){
+  if(answered||!cur||idx>=queue.length) return;
+  stopListening();
+  skipped.add(cur.name);
+  // bring it back a few birds later (or at the very end if the round is nearly over)
+  queue.splice(Math.min(queue.length, idx+3),0,cur);
+  nextBird();
+}
+$("skipBtn").onclick=skipBird;
+$("badPhoto").onclick=()=>{ const c=plan.get(cur&&cur.name); if(c) dropPhoto(cur,c,true); };
+
+function finish(points, how){
+  stopListening();
+  answered=true; roundCount++; skipped.delete(cur.name);
+  score+=points; $("score").textContent=score;
+  $("answer").disabled=true; $("check").disabled=true; $("hintBtn").disabled=true; $("giveUp").disabled=true;
+  $("tools").classList.add("hidden");
+  const tag = "backyard bird";
+  if(points>0){
+    saved.missed[cur.name]=Math.max(0,(saved.missed[cur.name]||0)-1);
+    $("msg").innerHTML='<div class="msg good"><h2>✅ '+esc(cur.name)+' <span class="tag">+'+points+'</span><span class="tag">'+tag+'</span></h2>'+
+      (how==="close"?'<div>Close enough! Spelling: <b>'+esc(cur.name)+'</b>.</div>':'')+esc(cur.fact)+'</div>';
+  } else {
+    saved.missed[cur.name]=(saved.missed[cur.name]||0)+1;
+    missedThisRound.push(cur.name);
+    $("msg").innerHTML='<div class="msg bad"><h2>It was the '+esc(cur.name)+' <span class="tag">'+tag+'</span></h2>'+esc(cur.fact)+'</div>';
+  }
+  store.save(saved);
+  $("next").textContent = roundCount>=roundTotal ? "See results" : "Next bird →";
+  $("next").classList.remove("hidden"); $("next").focus();
+}
+
+$("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  if(answered||!cur) return;
+  const v=$("answer").value.trim(); if(!v) return;
+  const r=judge(v,cur);
+  if(r!=="no"){
+    attempts++;
+    let pts=Math.max(1,4-attempts-(hinted?1:0)); // 3 / 2 / 1, hint costs 1 (never below 1)
+    return finish(pts,r);
+  }
+  attempts++;
+  if(attempts>=3){ return finish(0); }
+  const inp=$("answer"); inp.classList.remove("shake"); void inp.offsetWidth; inp.classList.add("shake");
+  $("msg").innerHTML='<div class="msg info">'+(heard?'I heard “'+esc(heard)+'”. ':'')+'Not quite. '+(3-attempts)+' guess'+(3-attempts===1?"":"es")+' left.</div>';
+  heard=null;
+  inp.select();
+});
+
+/* ---------- speaking the answer (browser speech recognition) ---------- */
+let heard=null, rec=null, listening=false;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function stopListening(){ if(rec&&listening){ try{rec.abort();}catch(e){} } listening=false; $("mic").classList.remove("on"); }
+function say(html,kind){ $("msg").innerHTML='<div class="msg '+(kind||"info")+'">'+html+'</div>'; }
+function handleSpoken(alts){
+  const first=norm(alts[0]||"");
+  // a few spoken commands
+  if(["skip","skipit","skipthisone","skipforNow"].map(norm).includes(first)){ if(!$("skipBtn").disabled) skipBird(); return; }
+  if(["hint","givemeahint","ahint"].includes(first)){ $("hintBtn").click(); return; }
+  if(["showanswer","giveup","idontknow","dontknow","showme"].includes(first)){ $("giveUp").click(); return; }
+  // otherwise it's a guess: prefer an exact match among the alternatives, then a close one
+  let pick=null;
+  for(const a of alts){ if(judge(a,cur)==="exact"){ pick=a; break; } }
+  if(!pick) for(const a of alts){ if(judge(a,cur)==="close"){ pick=a; break; } }
+  heard = pick ? null : alts[0];
+  $("answer").value = pick || alts[0];
+  $("form").dispatchEvent(new Event("submit",{cancelable:true}));
+}
+function startListening(){
+  if(answered||!cur) return;
+  if(listening){ try{rec.stop();}catch(e){} return; }
+  rec=new SR(); rec.lang="en-US"; rec.interimResults=true; rec.maxAlternatives=5; rec.continuous=false;
+  let gotFinal=false;
+  rec.onstart=()=>{ listening=true; $("mic").classList.add("on"); say("🎤 Listening… say the bird's name."); };
+  rec.onresult=e=>{
+    const res=e.results[e.results.length-1];
+    $("answer").value=res[0].transcript;
+    if(res.isFinal){ gotFinal=true; handleSpoken(Array.from(res).map(a=>a.transcript)); }
+  };
+  rec.onerror=e=>{
+    const m={ "not-allowed":"The microphone is blocked. Allow it in your browser's site settings and try again.",
+              "service-not-allowed":"Speech recognition isn't allowed here. Try opening the game in Chrome, Edge or Safari.",
+              "no-speech":"I didn't hear anything. Tap the mic and try again.",
+              "audio-capture":"No microphone found.",
+              "network":"Speech recognition needs an internet connection." }[e.error];
+    if(m) say(m,"bad");
+  };
+  rec.onend=()=>{ listening=false; $("mic").classList.remove("on");
+    if(!gotFinal && !answered && $("msg").textContent.indexOf("Listening")>=0) $("msg").innerHTML=""; };
+  try{ rec.start(); }catch(e){ say("Couldn't start the microphone. Try again.","bad"); }
+}
+if(SR){ $("mic").classList.remove("hidden"); $("mic").onclick=startListening; }
+$("hintBtn").onclick=()=>{
+  if(answered||!cur) return;
+  hinted=true;
+  const pattern=cur.name.split(" ").map(w=>w.split("").map((c,i)=>i===0?c:(c==="-"||c==="'"?c:"_")).join(" ")).join("   ");
+  $("msg").innerHTML='<div class="msg info">Hint: <span class="hint">'+esc(pattern)+'</span></div>';
+  $("answer").focus();
+};
+$("giveUp").onclick=()=>{ if(!answered&&cur) finish(0); };
+$("next").onclick=()=>nextBird();
+
+function endRound(){
+  show("end");
+  const max=roundTotal*3, mode="all", key=mode+"-"+roundLen;
+  $("finalScore").textContent=score+" / "+max;
+  const prev=saved.best[key];
+  let note="";
+  if(prev==null || score>prev){ saved.best[key]=score; store.save(saved); note = prev==null ? "First score saved for this setting." : "🎉 New best (old best: "+prev+")."; }
+  else note="Best for this setting: "+prev+".";
+  $("finalNote").textContent=note;
+  if(missedThisRound.length){
+    $("missedBox").classList.remove("hidden");
+    $("missedList").innerHTML=missedThisRound.map(n=>"<li>"+esc(n)+"</li>").join("");
+  } else $("missedBox").classList.add("hidden");
+}
+$("go").onclick=startRound;
+$("again").onclick=startRound;
+$("menu").onclick=()=>{ show("start"); refreshStartInfo(); };
+refreshStartInfo();
+</script>
+</body>
+</html>
